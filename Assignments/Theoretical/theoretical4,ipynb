@@ -1,0 +1,530 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:36:17.061125Z",
+     "start_time": "2021-02-09T09:36:16.076179Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import matplotlib.ticker as mtick\n",
+    "import pandas as pd\n",
+    "from treelib import Node, Tree"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Introduction to the entropy\n",
+    "\n",
+    "Entropy is a measure of information, used in many fields, including physics, statistics and machine learning. It describe how much order or disorder there is in random variables (r.v.) or sequences. For instance, if Alice tosses a fair coin and records the result, how many bits of information does she need to send to Bob so that he knows the result as well? He needs exactly one bit (0 = heads, 1 = tail) on average. We always assume they both know what the setup of the experiment is.\n",
+    "\n",
+    "The entropy is written $H(x)$ and is defined as:\n",
+    "$H(x) = \\mathbb{E}[-log_2(x)] = - \\Sigma_{i=1}^N p(x_i) log_2(p(x_i))$.\n",
+    "\n",
+    "A bit of intuition:\n",
+    "1. As a measure of information, we want the entropy to be additive. If you get one e-mail, you get n bits of information, if you get two e-mails, you get n+m bits of information. Unfortunately, when two independant random variables are realized, they are multiplied together : $p(x_a \\cap x_b) = p(x_a)p(x_b)$. In order to make them additive, the logarithm function can be used: $\\log p(x_a \\cap x_b) = \\log p(x_a) + \\log p(x_b)$. \n",
+    "2. The rarer the event, the more information must be transferred when it occurs. For instance, if a coin is rigged and always gives tail, Alice doesn't even need to send anything to Bob, since he already know that it will be tail. Remember that both Alice and Bob know the exact setup of the experiment. Newspaper tend to follow this trend as well: they don't talk about how the sun will rise this morning, talk a bit about the weather forecast (a few numbers) but might dedicate a full page to the new, shiney and overhyped tv-series dedicated to the life of Carl XVI Gustaf. So the amount of information is invertly proportional to the probability: $1/p(x)$.\n",
+    "3. So far we have $log_2(1/(p(x)) = -log_2(p(x))$, and we take its expectation such that it gives the average information in a random variable. Note that the base of the log is arbitrary, you will often see either $e$ or $2$ as a base. I personnaly enjoy using $log_2$ because the entropy will be in bits which is easier to interpret (with $e$, the entropy will be in nats).\n",
+    "\n",
+    "### Exercise: Entropy of the Normal distribution\n",
+    "\n",
+    "Calculate the (base 2) entropy of a Normal distribution.\n",
+    "\n",
+    "The pdf of the Normal distribution is: $\\exp(-\\frac{(x-\\mu)^2}{2\\sigma^2}) / \\sqrt{2 \\pi \\sigma^2}$.\n",
+    "You need to find: $\\mathbb{E}[-log_2(\\exp(-\\frac{(x-\\mu)^2}{2\\sigma^2}) / \\sqrt{2 \\pi \\sigma^2})]$\n",
+    "Do it step-by-step, first the log (base 2), then flip the signs, then take the expectation of the remaining formula.\n",
+    "\n",
+    "The result will be: $\\frac{1}{2} log_2(2 \\pi e \\sigma^2)$\n",
+    "\n",
+    "Formulas to use (or not, as you want, who am I to dictate anything?):\n",
+    "* $\\log_2(a*b) = \\log_2(a) + \\log_2(b)$\n",
+    "* $\\log_2(x) = \\log(x)/\\log(2)$\n",
+    "* $\\log_2(\\exp(u)) = u/\\log(2)$. Be careful!! The $\\log_2$ is no longer base 2 in the right hand side, but base $e$.\n",
+    "* $\\mathbb{E}[ax + by] = a\\mathbb{E}[x] + b\\mathbb{E}[y]$. That means that all the constants go out of the expectation. In this case, both $\\mu$ and $\\sigma^2$ are constants. $x$ is not constant.\n",
+    "* $\\mathbb{E}[x] = \\mu$ and $\\mathbb{V}[x] = \\sigma^2$.\n",
+    "* $\\mathbb{E}[(x - \\mu)^2 / \\sigma^2] = \\mathbb{E}[(x - \\mu)^2] / \\sigma^2 = \\mathbb{V}[x] / \\sigma^2 = \\sigma^2/\\sigma^2 = 1$\n",
+    "* $1/\\log(2) = \\log_2(2^{1/log(2)}) = \\log_2(e)$\n",
+    "\n",
+    "Now that you have found the entropy of a normal distribution we can wonder about the intuitive meaning of the thing. First, the entropy has only one variable: $\\sigma^2$. Let's imagine a friend of yours invented a new die that, when tossed gives you a random number sampled from a normal distribution (rounded to the nearest integer). He calls it the Normal Die ™️ (confusing name, I know, there's already a lot of hatred for the normal distribution being called that way). Like for a regular die, where you know the probability of each face, you are given the mean and the variance. If I buy one such die, and toss it, how many bits do I need to send to you for you to know which value is displayed on the die? The entropy formula gives you that, but:\n",
+    "* If the mean is 0, 20 or -37, the entropy doesn't change. This is because you know the mean is common knowledge, and your friend only needs to send the deviation from the mean to you. If the mean is 20, he tosses the dice and get 24, but only needs to send 24-20=+4 (2 bits, plus a sign bit = 3 bits in total) to you. When you get the result: +4, you just have to add the mean to recover the true number. Remember that the mean and variance are common knowledge.\n",
+    "* The bigger $\\sigma^2$, the bigger the variance and the more bits I need to send to you.\n",
+    "This is what the formula above states, meaning entropy is also a measure of uncertainty. More variance means more bits to send, so a bigger entropy.\n",
+    "\n",
+    "Advanced note: you might notice that if the variance is 0, the log is negative ($- \\infty$) do not get confused, and just considered that negative entropies get clipped to 0 bits. This works because we rounded the values generated by the continuous normal distribution.$"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Entropy of a coin toss\n",
+    "\n",
+    "Let's imagine we can choose how to rig a coin so that we can choose its average probability of heads. That setup is exactly how a Bernoulli r.v. works. You choose its parameter $\\theta$ and then $p(heads) = \\theta$. Note that $\\theta \\in [0, 1]$ and for most coins: $\\theta = 0.5$.\n",
+    "\n",
+    "* Step 1: Find and write down the formula for the entropy of a bernoulli variable on the internet. Wikipedia is an excellent resource in statistics (and often reliable, but don't cite it still). Do not forget to change the $log$ into $log_2$!\n",
+    "\n",
+    "* Step 2: The formula involves $x * log_2(x)$. What happens when $x = 0$? We get $0 * -\\infty = I.F.$, so this is clearly not the right approach. The good way of finding out what happens is by applying [L'Hôpital's rule](https://en.wikipedia.org/wiki/L%27H%C3%B4pital%27s_rule) and finding the limit of $x * log(x)$ when $x$ approaches 0. You can either do it as an exercise if you think it's fun (it is quick and rewarding in practice, give it a shot :), or you can look up the answer in the Wikipedia page above.\n",
+    "\n",
+    "* Step 3: Plot the entropy of a bernoulli r.v. below. Do not forget to use the right base for the log (log base 2 exists in numpy, look it up). And make it so that it works even when $p$ is 0 and 1.\n",
+    "\n",
+    "* Step 4: What can you conclude about the plot? Does it correspond to what is written up there (what is the entropy when the parameter is 0, 0.5, 1)? What parameter gives the highest entropy?"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:36:45.395767Z",
+     "start_time": "2021-02-09T09:36:45.224355Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# Domain of the parameter p of a Bernoulli rv: p ∈ [0, 1]\n",
+    "p = np.linspace(0, 1, 1000)\n",
+    "\n",
+    "def xln2x(x):\n",
+    "    \"\"\" Computes x * log_2(x) in a safe way.\"\"\"\n",
+    "    # If x is not a numpy array, it becomes one\n",
+    "    if not isinstance(x, np.ndarray):\n",
+    "        x = np.array(x)\n",
+    "    # STUDENT CODE:\n",
+    "    return ...\n",
+    "\n",
+    "# STUDENT CODE:\n",
+    "# Use the entropy formula you found in Step 1 above.\n",
+    "entropy = ...\n",
+    "\n",
+    "plt.figure()\n",
+    "plt.title(\"Entropy of a Bernoulli random variable\")\n",
+    "plt.plot(p, entropy)\n",
+    "plt.xlabel(\"Probability of heads\")\n",
+    "plt.gca().get_xaxis().set_major_formatter(mtick.PercentFormatter(1.0))\n",
+    "plt.ylabel(\"Entropy [bits]\")\n",
+    "plt.grid()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-05T11:07:36.677016Z",
+     "start_time": "2021-02-05T11:07:36.628770Z"
+    }
+   },
+   "source": [
+    "## Entropy of a sequence\n",
+    "\n",
+    "Let's now make the distinction between the empirical entropy -- the average information in a sequence -- with the information content -- how much information there is in total in a sequence. For instance, a fair coin has an entropy of 1 bit, but when tossed 4 times has an information content of 4 bits (a.k.a a nibble).\n",
+    "\n",
+    "Now implement a function that calculates the entropy of a binary sequence yourself. First, calcultate the parameter p, then plug it in the formula of the entropy (bernoulli)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:38:08.945369Z",
+     "start_time": "2021-02-09T09:38:08.927559Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "def binary_entropy(seq):\n",
+    "    \"\"\" Returns the empirical entropy of a sequence.\n",
+    "    Input values should contain only 0s and 1s.\"\"\"\n",
+    "    # If seq is not a numpy array, it becomes one\n",
+    "    if not isinstance(seq, np.ndarray):\n",
+    "        seq = np.array(seq)\n",
+    "    # STUDENT CODE:\n",
+    "    return ...\n",
+    "\n",
+    "assert binary_entropy([0]) == 0, \"Failed test 1\"\n",
+    "assert binary_entropy([0, 1]) == 1, \"Failed test 2\"\n",
+    "assert binary_entropy([0]*10 + [1]*10) == 1, \"Failed test 3\"\n",
+    "assert np.abs(binary_entropy([0] + [1]*8) - 0.50326) < 1e-5, \"Failed test 4\"\n",
+    "assert binary_entropy([]) == 0, \"Failed test 5\""
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Find the animal in 20 questions\n",
+    "\n",
+    "As a kid, you might have travelled by car over long distances and been bored for hours on end and played this game: find the animal/object in so many questions. Perhaps you just were lucky and played the Sims 2 on a portable PlayStation 2. Whatever.\n",
+    "\n",
+    "This exercise consists of automating the 20 questions game such that it asks 20 questions (or more or less) to find an animal the player has chosen. When you have kids on your own someday (or already), you can entertain your kids for 12+ hours when you travel.\n",
+    "\n",
+    "You are given a dataset, the columns correspond to features, the rows to names of animals. A given animal has a set of binary features. For instance, a bear has hair, lactate, is a mammal and predator, has teeth, breathes, and so on.\n",
+    "\n",
+    "You will have to implement an algorithm that creates a binary decision tree and use this tree to create a questionaire (this step is already done for you below) and find an animal in as few guesses as possible.\n",
+    "The algorithm to use is ID3, you can refer to the lecture material to find the algorithm. The measure to use is the entropy. You can try with the information gain if you want to."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:38:22.356958Z",
+     "start_time": "2021-02-09T09:38:22.232210Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>is it warm blooded?</th>\n",
+       "      <th>can it fly?</th>\n",
+       "      <th>is it a vertebrate?</th>\n",
+       "      <th>is it endangered?</th>\n",
+       "      <th>does it live in groups?</th>\n",
+       "      <th>does it have hair?</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>ant</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>bee</th>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>cat</th>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>cpl</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>duck</th>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "      is it warm blooded?  can it fly?  is it a vertebrate?  \\\n",
+       "ant                     0            0                    0   \n",
+       "bee                     0            1                    0   \n",
+       "cat                     1            0                    1   \n",
+       "cpl                     0            0                    0   \n",
+       "duck                    1            1                    1   \n",
+       "\n",
+       "      is it endangered?  does it live in groups?  does it have hair?  \n",
+       "ant                   0                        1                   0  \n",
+       "bee                   0                        1                   1  \n",
+       "cat                   0                        0                   1  \n",
+       "cpl                   0                        0                   1  \n",
+       "duck                  0                        1                   0  "
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Download and load the dataset into pandas\n",
+    "dataset_url = \"https://raw.githubusercontent.com/earthtojake/20q/master/data/small.csv\"\n",
+    "# There is a bigger dataset at\n",
+    "#dataset_url = \"https://raw.githubusercontent.com/earthtojake/20q/master/data/big.csv\"\n",
+    "df = pd.read_csv(dataset_url, index_col=0)\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:38:47.846885Z",
+     "start_time": "2021-02-09T09:38:47.774720Z"
+    },
+    "scrolled": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Root\n",
+      "└── is it warm blooded?\n",
+      "    ├── +is it endangered?\n",
+      "    │   ├── +can it fly?\n",
+      "    │   │   ├── +eagle\n",
+      "    │   │   └── -does it have hair?\n",
+      "    │   │       ├── +man\n",
+      "    │   │       └── -elephant\n",
+      "    │   └── -can it fly?\n",
+      "    │       ├── +duck\n",
+      "    │       └── -does it live in groups?\n",
+      "    │           ├── +rabbit\n",
+      "    │           └── -cat\n",
+      "    └── -does it live in groups?\n",
+      "        ├── +can it fly?\n",
+      "        │   ├── +bee\n",
+      "        │   └── -is it a vertebrate?\n",
+      "        │       ├── +her\n",
+      "        │       └── -ant\n",
+      "        └── -can it fly?\n",
+      "            ├── +fly\n",
+      "            └── -is it a vertebrate?\n",
+      "                ├── +lizard\n",
+      "                └── -cpl\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "tree = Tree()\n",
+    "tree.create_node(\"Root\", \"root\")  # root node\n",
+    "\n",
+    "def generate_tree(data, tree, branch=\"\", parent=\"root\"):\n",
+    "    \"\"\"Populates the tree with questions and candidate animals.\n",
+    "    \n",
+    "    Args:\n",
+    "        data: The dataset to use\n",
+    "        tree: The tree to populate\n",
+    "        branch: '+' if the previous condition was true, '-' otherwise.\n",
+    "        parent: The parent node, so that we can attach children nodes to it.\n",
+    "    \n",
+    "    Note: Treelib sorts the name of the nodes by alphabetical order, its important\n",
+    "    to name the nodes such that the first one is the result of a positive condition,\n",
+    "    the second one, the negative condition. This has been taken care of if you use\n",
+    "    the code template by naming the node \"+something\" and \"-something\" (In ASCII, +\n",
+    "    (42) is before - (45)).\n",
+    "    \"\"\"\n",
+    "    # STUDENT CODE:\n",
+    "    # Find the column with the highest entropy\n",
+    "    entropies = ...\n",
+    "    # The columns with a null entropy can be removed\n",
+    "    ...\n",
+    "    # If there aren't any columns left to discriminate the animals, we stop\n",
+    "    # If there is only one animal and plenty of columns, we also stop\n",
+    "    no_column_left = ...\n",
+    "    one_animal_left = ...\n",
+    "    if no_column_left or one_animal_left:\n",
+    "        tree.create_node(branch+\", \".join(data.index), parent=parent)\n",
+    "        return\n",
+    "    # If we are here, it means the data can be split some more.\n",
+    "    # entropies might have more columns than the current data, since\n",
+    "    # we removed some columns.\n",
+    "    ...\n",
+    "    # We find the column with the highest entropy\n",
+    "    ...\n",
+    "    # We add the column to the tree under the current parent\n",
+    "    node = tree.create_node(branch + selected_column, parent=parent)\n",
+    "    # we split the data by column and remove the said column\n",
+    "    ...\n",
+    "    \n",
+    "    # We generate the branches **recursively**\n",
+    "    # If the answer to the question was \"yes\"\n",
+    "    generate_tree(data[mask], tree, branch=\"+\", parent=node)\n",
+    "    # If the answer to the question was \"false\"\n",
+    "    generate_tree(data[~mask], tree, branch=\"-\", parent=node)\n",
+    "\n",
+    "# The tree is generated\n",
+    "generate_tree(df, tree)\n",
+    "# The tree is plotted\n",
+    "tree.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:39:01.227691Z",
+     "start_time": "2021-02-09T09:39:01.223697Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Depth of the tree: 5\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Depth of the tree:\", tree.depth())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2021-02-09T09:39:09.359112Z",
+     "start_time": "2021-02-09T09:39:05.416230Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Pick an animal!\n",
+      "\n",
+      "is it warm blooded? n\n",
+      "-does it live in groups? n\n",
+      "-can it fly? n\n",
+      "-is it a vertebrate? y\n",
+      "I think you chose a +lizard\n"
+     ]
+    }
+   ],
+   "source": [
+    "# No need to add code here!\n",
+    "# Just run this and enjoy :)\n",
+    "def ask_yesno(question):\n",
+    "    \"\"\"Checks that the written answer is valid. Iterates otherwise.\"\"\"\n",
+    "    while True:\n",
+    "        answer = input(question + \" \").lower().strip()\n",
+    "        if answer == \"y\" or answer == \"yes\":\n",
+    "            return True\n",
+    "        if answer == \"n\" or answer == \"no\":\n",
+    "            return False\n",
+    "        print(\"Just answer 'yes' or 'no'.\")\n",
+    "\n",
+    "print(\"Pick an animal!\")\n",
+    "print()\n",
+    "\n",
+    "question = tree.children(\"root\")[0]\n",
+    "while True:\n",
+    "    # Have we found the answer?\n",
+    "    if question.is_leaf():\n",
+    "        print(\"I think you chose a \" + question.tag)\n",
+    "        break\n",
+    "    # Otherwise we keep asking\n",
+    "    answer = ask_yesno(question.tag)\n",
+    "    children = tree.children(question.identifier)\n",
+    "    question = children[0] if answer else children[1]"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.1"
+  },
+  "varInspector": {
+   "cols": {
+    "lenName": 16,
+    "lenType": 16,
+    "lenVar": 40
+   },
+   "kernels_config": {
+    "python": {
+     "delete_cmd_postfix": "",
+     "delete_cmd_prefix": "del ",
+     "library": "var_list.py",
+     "varRefreshCmd": "print(var_dic_list())"
+    },
+    "r": {
+     "delete_cmd_postfix": ") ",
+     "delete_cmd_prefix": "rm(",
+     "library": "var_list.r",
+     "varRefreshCmd": "cat(var_dic_list()) "
+    }
+   },
+   "types_to_exclude": [
+    "module",
+    "function",
+    "builtin_function_or_method",
+    "instance",
+    "_Feature"
+   ],
+   "window_display": false
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
