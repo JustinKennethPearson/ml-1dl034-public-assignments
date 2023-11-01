@@ -11,7 +11,7 @@ then please contact:
 
 Justin Pearson justin.pearson@it.uu.se  for permission.
 
-## Information 2023
+## Information 2023/2024
 I am currently updating the notebooks and new versions will be
 available here before the course starts. 
 
