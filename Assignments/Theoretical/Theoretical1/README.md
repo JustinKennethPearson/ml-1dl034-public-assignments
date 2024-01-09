@@ -5,6 +5,7 @@ file `data_for_theoretical_notebook_1.csv`. The notebook
 `data_pre_process.ipynb` is only for instructional purposes. It is an
 example of how to do natural language preprocessing.
 
-If you want to do the pre-processing yourself, then you will need to
-uncompress `twitter_sentiment_analysis.csv.gz` using `gzip` or
-something similar.
+If you want to do the preprocessing yourself then you need the file
+`twitter_sentiment_analysis.csv`. This is in the files section of the
+Studium instance of this years course.
+
