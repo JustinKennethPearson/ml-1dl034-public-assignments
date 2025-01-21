@@ -2,8 +2,7 @@
 
 This repo continas all notebooks and data for assignments and projects
 for the introduction to the introduction to machine learning course
-[1DL034](http://user.it.uu.se/~justin/Hugo/courses/machinelearning/)
-at Uppsala.
+[1DL034](https://intro-ml-1dl034-uu-se.github.io/) at Uppsala University.
 
 This repository is primarily intended for students on the course.
 If for some reason you wish to use the material for another purpose
